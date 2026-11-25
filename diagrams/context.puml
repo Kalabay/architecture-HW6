@@ -1,0 +1,30 @@
+@startuml
+!include <C4/C4_Context>
+SHOW_PERSON_OUTLINE()
+UpdateElementStyle("person", $bgColor="white", $fontColor="#278007", $borderColor="#278007", $borderThickness="2")
+UpdateElementStyle("system", $bgColor="white", $fontColor="#1168BD", $borderColor="#1168BD", $shape=RoundedBoxShape(), $borderThickness="2")
+UpdateElementStyle("external_system", $bgColor="white", $fontColor="#C50D27", $borderColor="#C50D27", $shape=RoundedBoxShape(), $borderThickness="2")
+LAYOUT_LEFT_RIGHT()
+skinparam defaultFontName Arial
+skinparam defaultFontSize 16
+hide stereotype
+skinparam shadowing false
+skinparam dpi 130
+skinparam ArrowStyle dashed
+skinparam padding 12
+skinparam nodesep 65
+skinparam ranksep 75
+title
+C4 · Контекст системы
+end title
+Person(author, "Автор объявления", "Собственник или агент")
+Person(moderator, "Модератор", "Проверяет спорные совпадения и выборку автопубликаций")
+System(system, "Проверка дубликатов", "Находит похожие объявления и готовит решение о публикации")
+System_Ext(listings, "Платформа объявлений Циана", "UI, учётные записи, карточки, фотографии и статусы публикации")
+Rel(author, listings, "Отправляет объявление, получает статус и причину решения")
+Rel(listings, system, "Передаёт новую версию объявления и изменения каталога")
+Rel(system, listings, "Возвращает решение для конкретной версии объявления")
+Rel(moderator, system, "Смотрит пары объявлений, подтверждает или отклоняет дубль")
+Rel(system, moderator, "Показывает кандидатов, сходства и очередь проверок")
+Rel(moderator, listings, "Сверяет исходные карточки при сбое ML")
+@enduml

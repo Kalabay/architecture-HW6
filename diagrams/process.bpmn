@@ -1,0 +1,222 @@
+<?xml version='1.0' encoding='utf-8'?>
+<b:definitions xmlns:b="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:d="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" id="Definitions" targetNamespace="https://example.org/cian-homework">
+  <b:collaboration id="Collaboration">
+    <b:participant id="Author" name="Автор объявления" />
+    <b:participant id="Cian" name="Проверка дубликатов Циана" processRef="Process" />
+    <b:messageFlow id="message_in" sourceRef="Author" targetRef="accept" name="Новое объявление" />
+    <b:messageFlow id="message_out" sourceRef="apply" targetRef="Author" name="Статус и причина" />
+  </b:collaboration>
+  <b:process id="Process" isExecutable="false">
+    <b:laneSet id="Lanes">
+      <b:lane id="api" name="API проверки">
+        <b:flowNodeRef>start</b:flowNodeRef>
+        <b:flowNodeRef>accept</b:flowNodeRef>
+        <b:flowNodeRef>auto</b:flowNodeRef>
+        <b:flowNodeRef>merge</b:flowNodeRef>
+        <b:flowNodeRef>apply</b:flowNodeRef>
+      </b:lane>
+      <b:lane id="ml" name="Сервис ML">
+        <b:flowNodeRef>infer</b:flowNodeRef>
+        <b:flowNodeRef>gate</b:flowNodeRef>
+      </b:lane>
+      <b:lane id="moderator" name="Модератор">
+        <b:flowNodeRef>review</b:flowNodeRef>
+      </b:lane>
+      <b:lane id="quality" name="Контроль качества">
+        <b:flowNodeRef>record</b:flowNodeRef>
+        <b:flowNodeRef>audit</b:flowNodeRef>
+        <b:flowNodeRef>feedback</b:flowNodeRef>
+        <b:flowNodeRef>end</b:flowNodeRef>
+      </b:lane>
+    </b:laneSet>
+    <b:startEvent id="start" name="">
+      <b:outgoing>flow0</b:outgoing>
+    </b:startEvent>
+    <b:task id="accept" name="Принять и очистить новую версию">
+      <b:incoming>flow0</b:incoming>
+      <b:outgoing>flow1</b:outgoing>
+    </b:task>
+    <b:task id="infer" name="Оценить пары объявлений">
+      <b:incoming>flow1</b:incoming>
+      <b:outgoing>flow2</b:outgoing>
+    </b:task>
+    <b:exclusiveGateway id="gate" name="Можно публиковать?">
+      <b:incoming>flow2</b:incoming>
+      <b:outgoing>flow3</b:outgoing>
+      <b:outgoing>flow4</b:outgoing>
+    </b:exclusiveGateway>
+    <b:task id="auto" name="Разрешить публикацию">
+      <b:incoming>flow3</b:incoming>
+      <b:outgoing>flow5</b:outgoing>
+    </b:task>
+    <b:task id="review" name="Сравнить объявления и принять решение">
+      <b:incoming>flow4</b:incoming>
+      <b:outgoing>flow6</b:outgoing>
+    </b:task>
+    <b:exclusiveGateway id="merge" name="">
+      <b:incoming>flow5</b:incoming>
+      <b:incoming>flow6</b:incoming>
+      <b:outgoing>flow7</b:outgoing>
+    </b:exclusiveGateway>
+    <b:task id="apply" name="Применить решение к проверенной версии">
+      <b:incoming>flow7</b:incoming>
+      <b:outgoing>flow8</b:outgoing>
+    </b:task>
+    <b:task id="record" name="Сохранить решение, признаки и пакет">
+      <b:incoming>flow8</b:incoming>
+      <b:outgoing>flow9</b:outgoing>
+    </b:task>
+    <b:subProcess id="audit" name="Выборочная проверка автопубликаций">
+      <b:incoming>flow9</b:incoming>
+      <b:outgoing>flow10</b:outgoing>
+      <b:startEvent id="audit_start" name="" />
+      <b:exclusiveGateway id="sample" name="Автопубликация попала в случайную выборку?" />
+      <b:userTask id="audit_review" name="Проверить объявление и поставить ручную метку" />
+      <b:serviceTask id="audit_result" name="При найденном дубле исправить статус и уведомить автора" />
+      <b:endEvent id="audit_end" name="" />
+      <b:sequenceFlow id="a1" sourceRef="audit_start" targetRef="sample" name="" />
+      <b:sequenceFlow id="a2" sourceRef="sample" targetRef="audit_review" name="Да" />
+      <b:sequenceFlow id="a3" sourceRef="sample" targetRef="audit_end" name="Нет / уже проверено вручную" />
+      <b:sequenceFlow id="a4" sourceRef="audit_review" targetRef="audit_result" name="" />
+      <b:sequenceFlow id="a5" sourceRef="audit_result" targetRef="audit_end" name="" />
+    </b:subProcess>
+    <b:task id="feedback" name="Передать ручные метки для обучения">
+      <b:incoming>flow10</b:incoming>
+      <b:outgoing>flow11</b:outgoing>
+    </b:task>
+    <b:endEvent id="end" name="">
+      <b:incoming>flow11</b:incoming>
+    </b:endEvent>
+    <b:sequenceFlow id="flow0" sourceRef="start" targetRef="accept" name="" />
+    <b:sequenceFlow id="flow1" sourceRef="accept" targetRef="infer" name="" />
+    <b:sequenceFlow id="flow2" sourceRef="infer" targetRef="gate" name="Скоры / ошибка" />
+    <b:sequenceFlow id="flow3" sourceRef="gate" targetRef="auto" name="Да: скор дубля ниже порога и данные надёжны" />
+    <b:sequenceFlow id="flow4" sourceRef="gate" targetRef="review" name="Нет / сбой / таймаут 2 с" />
+    <b:sequenceFlow id="flow5" sourceRef="auto" targetRef="merge" name="" />
+    <b:sequenceFlow id="flow6" sourceRef="review" targetRef="merge" name="Решение и метка" />
+    <b:sequenceFlow id="flow7" sourceRef="merge" targetRef="apply" name="" />
+    <b:sequenceFlow id="flow8" sourceRef="apply" targetRef="record" name="" />
+    <b:sequenceFlow id="flow9" sourceRef="record" targetRef="audit" name="" />
+    <b:sequenceFlow id="flow10" sourceRef="audit" targetRef="feedback" name="Ручные метки" />
+    <b:sequenceFlow id="flow11" sourceRef="feedback" targetRef="end" name="" />
+  </b:process>
+  <d:BPMNDiagram id="Diagram">
+    <d:BPMNPlane id="Plane" bpmnElement="Collaboration">
+      <d:BPMNShape id="Author_di" bpmnElement="Author" isHorizontal="true">
+        <dc:Bounds x="90" y="70" width="1570" height="60" />
+      </d:BPMNShape>
+      <d:BPMNShape id="Cian_di" bpmnElement="Cian" isHorizontal="true">
+        <dc:Bounds x="30" y="170" width="1630" height="720" />
+      </d:BPMNShape>
+      <d:BPMNShape id="api_di" bpmnElement="api" isHorizontal="true">
+        <dc:Bounds x="60" y="170" width="1600" height="180" />
+      </d:BPMNShape>
+      <d:BPMNShape id="ml_di" bpmnElement="ml" isHorizontal="true">
+        <dc:Bounds x="60" y="350" width="1600" height="180" />
+      </d:BPMNShape>
+      <d:BPMNShape id="moderator_di" bpmnElement="moderator" isHorizontal="true">
+        <dc:Bounds x="60" y="530" width="1600" height="180" />
+      </d:BPMNShape>
+      <d:BPMNShape id="quality_di" bpmnElement="quality" isHorizontal="true">
+        <dc:Bounds x="60" y="710" width="1600" height="180" />
+      </d:BPMNShape>
+      <d:BPMNShape id="start_di" bpmnElement="start">
+        <dc:Bounds x="124.0" y="244.0" width="32" height="32" />
+      </d:BPMNShape>
+      <d:BPMNShape id="accept_di" bpmnElement="accept">
+        <dc:Bounds x="195.0" y="222.0" width="210" height="76" />
+      </d:BPMNShape>
+      <d:BPMNShape id="infer_di" bpmnElement="infer">
+        <dc:Bounds x="465.0" y="402.0" width="210" height="76" />
+      </d:BPMNShape>
+      <d:BPMNShape id="gate_di" bpmnElement="gate">
+        <dc:Bounds x="807.0" y="417.0" width="46" height="46" />
+      </d:BPMNShape>
+      <d:BPMNShape id="auto_di" bpmnElement="auto">
+        <dc:Bounds x="960.0" y="222.0" width="200" height="76" />
+      </d:BPMNShape>
+      <d:BPMNShape id="review_di" bpmnElement="review">
+        <dc:Bounds x="940.0" y="582.0" width="240" height="76" />
+      </d:BPMNShape>
+      <d:BPMNShape id="merge_di" bpmnElement="merge">
+        <dc:Bounds x="1277.0" y="237.0" width="46" height="46" />
+      </d:BPMNShape>
+      <d:BPMNShape id="apply_di" bpmnElement="apply">
+        <dc:Bounds x="1390.0" y="222.0" width="240" height="76" />
+      </d:BPMNShape>
+      <d:BPMNShape id="record_di" bpmnElement="record">
+        <dc:Bounds x="1400.0" y="762.0" width="220" height="76" />
+      </d:BPMNShape>
+      <d:BPMNShape id="audit_di" bpmnElement="audit" isExpanded="false">
+        <dc:Bounds x="1030.0" y="757.0" width="220" height="86" />
+      </d:BPMNShape>
+      <d:BPMNShape id="feedback_di" bpmnElement="feedback">
+        <dc:Bounds x="605.0" y="762.0" width="250" height="76" />
+      </d:BPMNShape>
+      <d:BPMNShape id="end_di" bpmnElement="end">
+        <dc:Bounds x="444.0" y="784.0" width="32" height="32" />
+      </d:BPMNShape>
+      <d:BPMNEdge id="flow0_di" bpmnElement="flow0">
+        <di:waypoint x="156" y="260" />
+        <di:waypoint x="195" y="260" />
+      </d:BPMNEdge>
+      <d:BPMNEdge id="flow1_di" bpmnElement="flow1">
+        <di:waypoint x="405" y="260" />
+        <di:waypoint x="430" y="260" />
+        <di:waypoint x="430" y="440" />
+        <di:waypoint x="465" y="440" />
+      </d:BPMNEdge>
+      <d:BPMNEdge id="flow2_di" bpmnElement="flow2">
+        <di:waypoint x="675" y="440" />
+        <di:waypoint x="807" y="440" />
+      </d:BPMNEdge>
+      <d:BPMNEdge id="flow3_di" bpmnElement="flow3">
+        <di:waypoint x="830" y="417" />
+        <di:waypoint x="830" y="260" />
+        <di:waypoint x="960" y="260" />
+      </d:BPMNEdge>
+      <d:BPMNEdge id="flow4_di" bpmnElement="flow4">
+        <di:waypoint x="830" y="463" />
+        <di:waypoint x="830" y="620" />
+        <di:waypoint x="940" y="620" />
+      </d:BPMNEdge>
+      <d:BPMNEdge id="flow5_di" bpmnElement="flow5">
+        <di:waypoint x="1160" y="260" />
+        <di:waypoint x="1277" y="260" />
+      </d:BPMNEdge>
+      <d:BPMNEdge id="flow6_di" bpmnElement="flow6">
+        <di:waypoint x="1180" y="620" />
+        <di:waypoint x="1300" y="620" />
+        <di:waypoint x="1300" y="283" />
+      </d:BPMNEdge>
+      <d:BPMNEdge id="flow7_di" bpmnElement="flow7">
+        <di:waypoint x="1323" y="260" />
+        <di:waypoint x="1390" y="260" />
+      </d:BPMNEdge>
+      <d:BPMNEdge id="flow8_di" bpmnElement="flow8">
+        <di:waypoint x="1510" y="298" />
+        <di:waypoint x="1510" y="762" />
+      </d:BPMNEdge>
+      <d:BPMNEdge id="flow9_di" bpmnElement="flow9">
+        <di:waypoint x="1400" y="800" />
+        <di:waypoint x="1250" y="800" />
+      </d:BPMNEdge>
+      <d:BPMNEdge id="flow10_di" bpmnElement="flow10">
+        <di:waypoint x="1030" y="800" />
+        <di:waypoint x="855" y="800" />
+      </d:BPMNEdge>
+      <d:BPMNEdge id="flow11_di" bpmnElement="flow11">
+        <di:waypoint x="605" y="800" />
+        <di:waypoint x="476" y="800" />
+      </d:BPMNEdge>
+      <d:BPMNEdge id="message_in_di" bpmnElement="message_in">
+        <di:waypoint x="300" y="130" />
+        <di:waypoint x="300" y="222" />
+      </d:BPMNEdge>
+      <d:BPMNEdge id="message_out_di" bpmnElement="message_out">
+        <di:waypoint x="1510" y="222" />
+        <di:waypoint x="1510" y="130" />
+      </d:BPMNEdge>
+    </d:BPMNPlane>
+  </d:BPMNDiagram>
+</b:definitions>

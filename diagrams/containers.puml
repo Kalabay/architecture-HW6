@@ -1,0 +1,51 @@
+@startuml
+!include <C4/C4_Container>
+SHOW_PERSON_OUTLINE()
+UpdateElementStyle("person", $bgColor="white", $fontColor="#278007", $borderColor="#278007", $borderThickness="2")
+UpdateElementStyle("system", $bgColor="white", $fontColor="#1168BD", $borderColor="#1168BD", $shape=RoundedBoxShape(), $borderThickness="2")
+UpdateElementStyle("external_system", $bgColor="white", $fontColor="#C50D27", $borderColor="#C50D27", $shape=RoundedBoxShape(), $borderThickness="2")
+UpdateElementStyle("container", $bgColor="white", $fontColor="#1168BD", $borderColor="#1168BD", $shape=RoundedBoxShape(), $borderThickness="2")
+LAYOUT_TOP_DOWN()
+skinparam defaultFontName Arial
+skinparam defaultFontSize 15
+skinparam wrapWidth 220
+skinparam maxMessageSize 150
+hide stereotype
+skinparam shadowing false
+skinparam dpi 130
+skinparam ArrowStyle dashed
+skinparam padding 12
+skinparam nodesep 65
+skinparam ranksep 75
+title
+C4 · Контейнеры
+end title
+Person(moderator, "Модератор", "Спорные случаи и выборка автопубликаций")
+System_Ext(listings, "Платформа объявлений Циана", "Версии карточек, фотографии, авторы и статусы")
+Boundary(boundary, "Проверка дубликатов", "Система") {
+ Container(ui, "\nUI модератора", "React", "Пары объявлений, признаки сходства, причина решения")
+ Container(api, "\nAPI проверки", "Python / FastAPI", "ID и версия запроса, очистка данных, очередь модерации, аудит автопубликаций")
+ Container(ml, "\nСервис ML", "Python / FastAPI / CatBoost", "Подбор кандидатов и оценка вероятности дубля, один пакет модели на запрос")
+ ContainerDb(cases, "База проверок", "PostgreSQL", "Снимки признаков, версии карточек, кандидаты, скоры, пакет, решение и ручная метка")
+ ContainerDb(index, "Каталог признаков", "PostgreSQL / pgvector", "Актуальные признаки карточек, векторы фото, версия кодировщика и отметка свежести")
+ Container(worker, "\nПодготовка каталога", "Python", "Удаляет контакты из текста, готовит признаки и векторы, учитывает обновления и удаления")
+ ContainerQueue(queue, "События объявлений", "Kafka", "Создание, изменение и снятие объявления, ключ: ID объявления")
+ Container(train, "\nОбучение и проверка", "Airflow / Python / CatBoost", "Ручная разметка, разделение по времени и объектам, оценка перед публикацией")
+ ContainerDb(registry, "Реестр моделей", "MLflow / S3", "Версии модели, кодировщика, схемы признаков и порогов, проверенный пакет")
+}
+Rel(listings, api, "Новая карточка, ID и версия", "HTTPS")
+Rel(api, listings, "Решение и причина, применить только к той же версии", "HTTPS")
+Rel(moderator, ui, "Проверяет пары и отмечает результат")
+Rel(ui, api, "Получает очередь, передаёт решение и разметку", "HTTPS")
+Rel(api, ml, "Передаёт карточку, получает кандидатов и скоры, таймаут 2 с", "HTTP")
+Rel(api, cases, "Сохраняет проверку, выдаёт задания модератору", "SQL")
+Rel(ml, index, "Читает признаки кандидатов и свежесть индекса", "SQL")
+Rel(listings, queue, "Публикует изменения карточек и доступ к фото", "События")
+Rel(queue, worker, "Передаёт изменения по порядку версий")
+Rel(worker, index, "Обновляет признаки, исключает снятые объявления", "SQL")
+Rel(train, cases, "Читает ручные метки и снимки признаков на момент проверки", "SQL")
+Rel(train, registry, "Публикует пакет после оценки на отложенных данных")
+Rel(registry, ml, "Отдаёт проверенный пакет, последняя рабочая версия при сбое")
+Rel(registry, worker, "Отдаёт кодировщик и схему признаков того же пакета")
+Rel(moderator, listings, "Сверяет исходные карточки при сбое ML")
+@enduml

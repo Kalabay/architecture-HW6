@@ -1,0 +1,40 @@
+@startuml
+!include <C4/C4_Component>
+SHOW_PERSON_OUTLINE()
+UpdateElementStyle("person", $bgColor="white", $fontColor="#278007", $borderColor="#278007", $borderThickness="2")
+UpdateElementStyle("system", $bgColor="white", $fontColor="#1168BD", $borderColor="#1168BD", $shape=RoundedBoxShape(), $borderThickness="2")
+UpdateElementStyle("external_system", $bgColor="white", $fontColor="#C50D27", $borderColor="#C50D27", $shape=RoundedBoxShape(), $borderThickness="2")
+UpdateElementStyle("container", $bgColor="white", $fontColor="#1168BD", $borderColor="#1168BD", $shape=RoundedBoxShape(), $borderThickness="2")
+UpdateElementStyle("component", $bgColor="white", $fontColor="#1168BD", $borderColor="#1168BD", $shape=RoundedBoxShape(), $borderThickness="2")
+LAYOUT_TOP_DOWN()
+skinparam defaultFontName Arial
+skinparam defaultFontSize 15
+skinparam wrapWidth 220
+skinparam maxMessageSize 140
+hide stereotype
+skinparam shadowing false
+skinparam dpi 130
+skinparam ArrowStyle dashed
+skinparam padding 12
+skinparam nodesep 65
+skinparam ranksep 75
+title
+C4 · Компоненты ML-сервиса
+end title
+Boundary(boundary, "Сервис ML · Python / FastAPI", "Контейнер") {
+ Component(input, "\nВход проверки", "FastAPI", "Принимает карточку от API проверки, проверяет ID, версию и поля")
+ Component(version, "\nВыбор пакета", "Python", "Загружает совместимый пакет из реестра, при сбое оставляет рабочий")
+ Component(features, "\nПодготовка признаков", "Python", "Нормализует адрес, площадь, этаж, комнаты, очищает текст, кодирует фото")
+ Component(search, "\nПоиск кандидатов", "SQL / pgvector", "Читает каталог всех авторов, до 100 кандидатов по адресу и фото, проверяет свежесть")
+ Component(score, "\nОценка пар", "CatBoost", "Сравнивает параметры, фото и текст, считает p дубля для каждой пары")
+ Component(output, "\nОтвет проверки", "Python", "Передаёт API кандидатов, p_max, версию пакета и ошибки проверки")
+}
+Rel(input, version, "Запрашивает совместимый рабочий пакет")
+Rel(version, features, "Передаёт кодировщик и схему признаков")
+Rel(input, features, "Передаёт карточку без контактов и ФИО")
+Rel(features, search, "Передаёт адрес, параметры и векторы фото")
+Rel(search, score, "Передаёт признаки пар и свежесть каталога")
+Rel(version, score, "Передаёт модель и пороги зафиксированного пакета")
+Rel(score, output, "Передаёт скоры пар и причины сходства")
+Rel(input, output, "Передаёт ошибку входа или несовместимость", "Ошибка")
+@enduml
